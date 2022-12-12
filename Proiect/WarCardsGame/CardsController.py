@@ -10,7 +10,7 @@ class Card:
     def __init__(self, number, type, imagePath):
         self.__number = int(number)
         self.__type = type
-        self.__id = number + type
+        self.id = number + type
 
         #to do: check if image exists
         self.__image = Image.open(imagePath)
