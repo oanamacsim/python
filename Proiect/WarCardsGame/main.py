@@ -2,43 +2,45 @@ from tkinter import *
 from PIL import ImageTk, Image
 from CardsController import *
 from enum import Enum
-win = Tk()
-
 class Player:
     _cards = list()
-    _cardImg = None
-    _card_label = None
-    _is_in_war = False
+    _cardImg = None    #image that is shown for the player
+    _card_label = None #card label is the container of the cardImg
 
-    def __init__(self, cards, parent, row, column):
+    def __init__(self, cards, parentWidget, row, column):
         self._cards = cards
-        self._is_in_war = False
 
         cardsController = CardsController.get_cards_controller()
         self._cardImg = ImageTk.PhotoImage(cardsController.get_back_card().get_image())
-        self._card_label = Label(parent, text='', image=self._cardImg, compound='center')
+        self._card_label = Label(parentWidget, text='', image=self._cardImg, compound='center')
+        self._card_label.configure(bg='green')
         self._card_label.grid(row=row, column=column, sticky='WE', padx=50, pady=50)
 
     def update_card_image(self):
         if len(self._cards) == 0:
-            self.set_back_card_image()
-            return
+            return None
 
         self._cardImg = ImageTk.PhotoImage(self._cards[0].get_image())
-        self._card_label.configure(image=self._cardImg)
-
-    def update_card_text(self, text: str):
-        self._card_label.configure(text=text)
+        self._card_label.configure(image=self._cardImg, bg='green')
 
     def set_back_card_image(self):
+        cardsController = CardsController.get_cards_controller()
         self._cardImg = ImageTk.PhotoImage(cardsController.get_back_card().get_image())
-        self._card_label.configure(image=self._cardImg)
+        self._card_label.configure(image=self._cardImg, bg='green')
 
-    def set_is_in_war(self, is_in_war: bool):
-        self._is_in_war = is_in_war
+    def set_loser_card_image(self):
+        cardsController = CardsController.get_cards_controller()
+        self._cardImg = ImageTk.PhotoImage(cardsController.get_loser_card().get_image())
+        self._card_label.configure(image=self._cardImg, bg='green')
 
-    def get_is_in_war(self):
-        return self._is_in_war
+    def remove_image(self):
+        self._cardImg = ''
+        self._card_label.configure(image=self._cardImg, bg='green')
+
+    def set_winner_card_image(self):
+        cardsController = CardsController.get_cards_controller()
+        self._cardImg = ImageTk.PhotoImage(cardsController.get_winner_card().get_image())
+        self._card_label.configure(image=self._cardImg, bg='green')
 
     def add_card(self, to_add: Card):
         self._cards.append(to_add)
@@ -57,136 +59,213 @@ class Player:
 class War:
     cards = list()
     num_of_moves_until_end = 0
-    num_of_players = 0
-
-    def is_war_in_progress(self):
-        return self.num_of_players >= 2
 
 class GamePhase:
-    GameJustStarted = 1,
-    InitWar = 2,
-    ProcessWar = 3,
-    ShowCards = 4,
+    ProcessWar = 0,
+    ShowCards = 1,
+    InitGame = 2
 
-cardsController = CardsController.get_cards_controller()
+win = Tk()
 
-num_of_players = 4
-decks = cardsController.get_splited_decks(num_of_players)
+win.iconbitmap('icon.ico')
+win.title('War Card Game')
+win.config(bg='green')
+
+num_of_players = 2
+
+war = War()
 
 players = []
 
-war = War()
-gamePhase = GamePhase.ShowCards
+#create next move button
+button = Button(win)
+button.grid(row=2, column=1, padx=50, pady=50)
 
-for i in range(0, num_of_players):
-    player = Player(decks[i],win, 1, i)
-    players.append(player)
+#create gameStats text
+gameStatsString = StringVar()
+gameStatsString.set("")
+gameStatsLabel = Label(win, textvariable=gameStatsString)
+gameStatsLabel.grid(row=1, column=1)
+gameStatsLabel.configure(bg='green', font = ('calibri', 15, 'bold'))
+
+def initGame():
+    global win, gameStatsString, players, num_of_players, gamePhase
+
+    cardsController = CardsController.get_cards_controller()
+
+    #get num_of_players random decks
+    decks = cardsController.get_splited_decks(num_of_players)
+
+    # reset players in case they were already created
+    players = []
+
+    player1 = Player(decks[0], win, 1, 0)
+    players.append(player1)
+
+    player2 = Player(decks[1], win, 1, 2)
+    players.append(player2)
+
+    war.cards = []
+    war.num_of_moves_until_end = 0
+
+    gameStatsString.set("")
+
+    gamePhase = GamePhase.ShowCards
+
+def end_game():
+    global button, gamePhase, players, war
+    button.configure(text="Play again!")
+
+    winnerIndex = -1
+    for i in range(0, len(players)):
+        playerCard = players[i].get_first_card()
+        if playerCard is not None:
+            winnerIndex = i
+
+    if winnerIndex == -1:
+        gameStatsString.set("Game ended! Draw!")
+    else:
+        gameStatsString.set("Player " + str(winnerIndex) + " won the game!")
+
+    for i in range(0, len(players)):
+        if i == winnerIndex:
+            players[i].set_winner_card_image()
+
+        if i != winnerIndex:
+            players[i].set_loser_card_image()
+
+        if winnerIndex == -1:
+            players[i].set_back_card_image()
+
+    gamePhase = GamePhase.InitGame
 
 def process_move():
-    global gamePhase, players, war
-    print(war.num_of_moves_until_end)
-    print("-------------------")
-    for i in range(0, len(players)):
-        stringList = []
-        for j in range(0, len(players[i].get_cards())):
-            stringList.append(players[i].get_cards()[j].id)
-        print("Player{}: {}".format(i, stringList))
+    global button, gamePhase, players, war
 
-    print("-------------------")
-
+    #get the biggest card from the game
     biggest_card_number = -1
     for i in range(0, len(players)):
         playerCard = players[i].get_first_card()
 
-        if war.is_war_in_progress():
-            if players[i].get_is_in_war():
-                if playerCard.get_number() > biggest_card_number:
-                    biggest_card_number = playerCard.get_number()
-        else:
-            if playerCard.get_number() > biggest_card_number:
-                biggest_card_number = playerCard.get_number()
+        if playerCard is None:
+            continue
 
-    if gamePhase == GamePhase.InitWar:
-        # init war
-        print("Init War")
-        for i in range(0, len(players)):
-            playerCard = players[i].get_first_card()
-            war.cards.append(playerCard)
+        if playerCard.get_number() > biggest_card_number:
+            biggest_card_number = playerCard.get_number()
 
-            if playerCard.get_number() == biggest_card_number:
-                players[i].set_is_in_war(True)
-                players[i].update_card_text("IN WAR")
-                war.num_of_players += 1
-            else:
-                players[i].set_is_in_war(False)
-                players[i].update_card_text("NOT IN WAR")
-                players[i].set_back_card_image()
-                players[i].pop_card()
+    if gamePhase == GamePhase.InitGame:
+        initGame()
+        return
 
-        gamePhase = GamePhase.ProcessWar
+    # game should end if one card is None (one player lost a card)
+    gameShouldEnd = False
+    for i in range(0, len(players)):
+        playerCard = players[i].get_first_card()
 
-        if war.num_of_players >= 2:
-            # we have at least 2 players in this war
-            war._num_of_moves_until_end = biggest_card_number
-            return
-        else:
-            # we can process war results directly in this frame
-            war._num_of_moves_until_end = 0
+        if playerCard is None:
+            gameShouldEnd = True
+
+    if gameShouldEnd:
+        end_game()
+        return
 
     if gamePhase == GamePhase.ProcessWar:
-        print("Process War")
-        if war._num_of_moves_until_end == 0:
-            war.num_of_players = 0
+        if war.num_of_moves_until_end > 0:
+            # currently in a war. Just remove the cards and show the new ones
+
+            for i in range(0, len(players)):
+                playerCard = players[i].get_first_card()
+                # move the first card from the player to the war cards
+                war.cards.append(playerCard)
+                players[i].pop_card()
+
+            for i in range(0, len(players)):
+                players[i].update_card_image()
+
+            war.num_of_moves_until_end -= 1
+
+            for i in range(0, len(players)):
+                if players[i].get_first_card() == None:
+                    war.num_of_moves_until_end = 0
+
+            gameStatsString.set("War! cards left to drop:" + str(war.num_of_moves_until_end))
+
+            gamePhase = GamePhase.ProcessWar
+            return
+
+        if war.num_of_moves_until_end == 0:
+            # if multiple players have the biggest card we need to start the war
+
+            # count how many players have the biggest card
+            num_of_players_with_biggest_card = 0
             for i in range(0, len(players)):
                 playerCard = players[i].get_first_card()
 
-                if players[i].get_is_in_war():
+                if playerCard.get_number() == biggest_card_number:
+                    num_of_players_with_biggest_card += 1
+
+            # we found multiple players that has the same biggest card. We need to start a war!
+            if num_of_players_with_biggest_card >= 2:
+                if biggest_card_number == 14:
+                    # for ace, set war moves to 11
+                    war.num_of_moves_until_end = 11
+                else:
+                    # set war moves to biggest_card_number
+                    war.num_of_moves_until_end = biggest_card_number
+
+                gameStatsString.set("War! cards left to drop:" + str(war.num_of_moves_until_end))
+
+                gamePhase = GamePhase.ProcessWar
+                return
+
+            # we dont need to do a war. Just a single player is the winner
+            if num_of_players_with_biggest_card == 1:
+                winnerIndex = -1
+
+                for i in range(0, len(players)):
+                    playerCard = players[i].get_first_card()
+
                     if playerCard.get_number() == biggest_card_number:
-                        war.num_of_players += 1
-                    else:
-                        players[i].set_is_in_war("False")
-                        war.num_of_players -= 1
+                        winnerIndex = i
 
-                player.pop_card()
-
-        if war._num_of_moves_until_end > 0:
-            for i in range(0, len(players)):
-                if players[i].get_is_in_war():
+                    # move the first card from the player to the war cards
+                    war.cards.append(playerCard)
                     players[i].pop_card()
-                    players[i].update_card_image()
-            war._num_of_moves_until_end -= 1
 
-        if war.num_of_players == 1:
-            for i in range(0, len(players)):
-                if players[i].get_is_in_war():
-                    # player i is the winner of this war
-                    for warRewardCard in war.cards:
-                        players[i].add_card(warRewardCard)
+                for i in range(0, len(players)):
+                    if i == winnerIndex:
+                        gameStatsString.set("Player: " + str(i) + " won the cards")
 
-                    print("Player {} won {} cards".format(i, len(war.cards)))
-                    players[i].set_is_in_war("False")
+                        #move the cards from the war to the winner player
+                        for warCard in war.cards:
+                            players[i].add_card(warCard)
 
-            # reset war
-            war.cards = []
-            war.num_of_players = 0
-            war._num_of_moves_until_end = 0
-            gamePhase = GamePhase.ShowCards
+                        #reset war cards because now the winner have them
+                        war.cards = []
 
-        return
+                        gamePhase = GamePhase.ShowCards
+                    else:
+                        players[i].set_back_card_image()
+                return
 
     if gamePhase == GamePhase.ShowCards:
-        print("Show Cards")
+        # in case the button had previously another text value, reset it to next move
+        button.configure(text="Next move")
+
+        # in case we don't have a war in progress, reset the stats to nothing
+        if war.num_of_moves_until_end == 0:
+            gameStatsString.set("")
+
         for i in range(0, len(players)):
             players[i].update_card_image()
-            players[i].update_card_text('')
 
-            gamePhase = GamePhase.InitWar
+        # when the user will press again the nextMove button, we will process the war
+        gamePhase = GamePhase.ProcessWar
         return
 
-button = Button(win, text ="Next move", command=process_move)
-button.grid(row=2, column=2, padx=50, pady=50)
+initGame()
 
-playerScore = 0
-cpuScore = 0
+button.configure(text="Next move", command=process_move, font = ('calibri', 15, 'bold'), borderwidth = '4')
 
+win.resizable(False, False)
 win.mainloop()

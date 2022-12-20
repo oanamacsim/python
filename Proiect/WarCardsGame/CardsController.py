@@ -3,38 +3,41 @@ from PIL import ImageTk, Image
 import random
 
 class Card:
-    __number = None
-    __type = None
-    __image = None
+    _number = None
+    _type = None
+    _image = None
 
     def __init__(self, number, type, imagePath):
-        self.__number = int(number)
-        self.__type = type
+        self._number = int(number)
+        self._type = type
         self.id = number + type
 
-        #to do: check if image exists
-        self.__image = Image.open(imagePath)
-        self.__image = self.__image.resize((250, 363))
+        self._image = Image.open(imagePath)
+        self._image = self._image.resize((250, 363))
 
     def get_number(self):
-        return self.__number
+        return self._number
 
     def get_type(self):
-        return self.__type
+        return self._type
 
     def get_image(self):
-        return self.__image
+        return self._image
+
 
 class CardsController:
     __instance = None
-    __cards = None
+    _cards = None
 
     _card_back = None
+    _card_loser = None
 
-    __resourcesDir = "cards/"
-    __cards_numbers = ["2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14"]
-    __cards_types = ["clubs", "diamonds", "hearts", "spades"]
-    __card_back_path = "cards/card_back.png"
+    _resourcesDir = "cards/"
+    _cards_numbers = ["2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14"]
+    _cards_types = ["clubs", "diamonds", "hearts", "spades"]
+    _card_back_path = "cards/card_back.png"
+    _card_loser_path = "cards/card_loser.png"
+    _card_winner_path = "cards/card_winner.png"
 
     @staticmethod
     def get_cards_controller():
@@ -51,13 +54,19 @@ class CardsController:
             CardsController.__instance = self
 
     def get_cards(self):
-        return self.__cards
+        return self._cards
 
     def get_back_card(self):
         return self._card_back
 
-    def __get_random_deck(self, num_of_changes, num_of_cards_to_remove):
-        random_cards = self.__cards
+    def get_loser_card(self):
+        return self._card_loser
+
+    def get_winner_card(self):
+        return self.__card_winner
+
+    def _get_random_deck(self, num_of_changes, num_of_cards_to_remove):
+        random_cards = self._cards
 
         #remove first num_of_cards_to_remove (the smallest cards)
         for i in range(num_of_cards_to_remove):
@@ -77,7 +86,7 @@ class CardsController:
     def get_splited_decks(self, num_of_decks):
         num_of_cards_to_remove = 52 % num_of_decks
 
-        random_deck = self.__get_random_deck(10000, num_of_cards_to_remove)
+        random_deck = self._get_random_deck(10000, num_of_cards_to_remove)
 
         decks = []
 
@@ -87,14 +96,20 @@ class CardsController:
         for i in range(0, len(random_deck)):
             decks[i % num_of_decks].append(random_deck[i])
 
+        # for i in range(0, len(decks)):
+        #     for j in range(0, 23):
+        #         decks[i].pop(0)
+
         return decks
 
     def __load_cards(self):
-        self.__cards = []
+        self._cards = []
 
-        for cardNum in self.__cards_numbers:
-            for cardType in self.__cards_types:
-                imagePath = self.__resourcesDir + cardNum + "_of_" + cardType + ".png"
-                self.__cards.append(Card(cardNum, cardType, imagePath))
+        for cardNum in self._cards_numbers:
+            for cardType in self._cards_types:
+                imagePath = self._resourcesDir + cardNum + "_of_" + cardType + ".png"
+                self._cards.append(Card(cardNum, cardType, imagePath))
 
-        self._card_back = Card("-1", "None", self.__card_back_path)
+        self._card_back = Card("-1", "None", self._card_back_path)
+        self._card_loser = Card("-1", "None", self._card_loser_path)
+        self.__card_winner = Card("-1", "None", self._card_winner_path)
